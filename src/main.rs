@@ -66,6 +66,7 @@ fn main() -> std::io::Result<()> {
     // Allocate address space for the objects.
     let mut next_lomem_addx = FIRST_USABLE_LOW_ADDX;
     let mut next_himem_addx = FIRST_USABLE_HIGH_ADDX;
+    let mut end_addx = FIRST_USABLE_LOW_ADDX;
     let object_bases: Vec<_> = pmw1_exe.iter_objects().map(|obj| {
         let virsize = obj.virtual_size() as u32;
         let virsize_roundup = (virsize + PAGEMASK) & (!PAGEMASK);
@@ -78,6 +79,10 @@ fn main() -> std::io::Result<()> {
         };
         let retval = *retval_ref;
         *retval_ref += virsize_roundup;
+        // Update the end address for the map
+        if retval + virsize > end_addx {
+            end_addx = retval + virsize;
+        }
         retval
     }).collect();
 
@@ -105,6 +110,7 @@ fn main() -> std::io::Result<()> {
         }
         outfile.write_all(&outdata)?;
     }
+    outfile.set_len(end_addx.into())?;
     println!("Flat memory map written to {}", outfilename);
 
     let entry = pmw1_exe.entry_point();
